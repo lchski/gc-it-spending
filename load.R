@@ -26,3 +26,7 @@ projects <- read_csv("data/source/2019-gc-it-projects.csv", col_types = cols(
 contracts <- read_csv("data/source/tpsgc-pwgsc_co-ch_tous-all.csv") %>%
   clean_names() %>%
   remove_extra_columns()
+
+gsins <- read_csv("data/source/tpsgc-pwgsc_nibs-gsin.csv") %>%
+  clean_names() %>%
+  remove_extra_columns()

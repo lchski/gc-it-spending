@@ -22,6 +22,22 @@ software_contracts_in_scope <- contracts %>%
     labels = c("negative length", "<6 mos", "6 mos to 1 yr", ">1 yr")
   ))
 
+# double check that summing the `contract_value` column comes out to the same count as `total_contract_value`
+software_contracts_in_scope %>%
+  group_by(contract_number) %>%
+  summarize(
+    total = sum(contract_value),
+    min_total = min(total_contract_value),
+    max_total = max(total_contract_value)
+  ) %>%
+  pivot_longer(cols = c(total:max_total)) %>%
+  group_by(contract_number) %>% 
+  summarize(
+    n = n(),
+    n_distinct = n_distinct(value)
+  ) %>%
+  filter(n_distinct > 1)
+
 software_contracts_in_scope %>%
   group_by(contract_length_bin) %>%
   summarize(
