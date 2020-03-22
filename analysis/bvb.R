@@ -3,7 +3,7 @@ source("load.R")
 software_gsin_descs_excl_maintenance <- contracts %>%
   count_group(gsin, gsin_description_en) %>%
   ungroup() %>%
-  filter(str_detect(gsin_description_en, regex("software", ignore_case = TRUE))) %>%
+  filter(str_detect(gsin_description_en, regex("software|informatic", ignore_case = TRUE))) %>%
   filter(! str_detect(gsin_description_en, regex("maintenance", ignore_case = TRUE))) %>%
   pull(gsin_description_en)
 
@@ -44,7 +44,11 @@ software_contracts_in_scope %>%
   summarize(
     count = n(),
     total = sum(contract_value)
-  )
+  ) %>%
+  mutate(
+    prop = count / sum(count)
+  ) %>%
+  select(contract_length_bin, count, prop, total)
 
 software_contracts_in_scope %>%
   filter(amendment_number == "000") %>%
