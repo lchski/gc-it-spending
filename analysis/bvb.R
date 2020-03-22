@@ -23,6 +23,7 @@ software_contracts_in_scope <- contracts %>%
   ))
 
 # double check that summing the `contract_value` column comes out to the same count as `total_contract_value`
+# should be 0 rows returned if we're right
 software_contracts_in_scope %>%
   group_by(contract_number) %>%
   summarize(
@@ -43,4 +44,26 @@ software_contracts_in_scope %>%
   summarize(
     count = n(),
     total = sum(contract_value)
+  )
+
+software_contracts_in_scope %>%
+  filter(amendment_number == "000") %>%
+  select(contract_number, amendment_number, award_date, expiry_date, contract_value, total_contract_value) %>%
+  mutate(contract_fate = case_when(
+    total_contract_value == contract_value ~ "no change in value",
+    total_contract_value > contract_value ~ "increased cost",
+    total_contract_value < contract_value ~ "decreased cost"
+  )) %>%
+  group_by(contract_fate) %>%
+  summarize(
+    count = n(),
+    total_original = sum(contract_value),
+    total_amended = sum(total_contract_value)
+  ) %>%
+  mutate(
+    prop = count / sum(count),
+    total_change = total_amended - total_original
+  ) %>%
+  select(
+    contract_fate:count, prop, total_original:total_change
   )
