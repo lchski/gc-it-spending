@@ -30,3 +30,12 @@ contracts <- read_csv("data/source/tpsgc-pwgsc_co-ch_tous-all.csv") %>%
 gsins <- read_csv("data/source/tpsgc-pwgsc_nibs-gsin.csv") %>%
   clean_names() %>%
   remove_extra_columns()
+
+classify_gsins <- function(gsins) {
+  case_when(
+    str_starts(gsins, "JX|JI|WL") ~ "services for goods",
+    str_starts(gsins, "N") ~ "goods",
+    str_starts(gsins, "D|U|R|A") ~ "services",
+    TRUE ~ "TBD"
+  )
+}

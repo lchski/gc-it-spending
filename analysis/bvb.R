@@ -30,6 +30,7 @@ scope_contracts_by_gsins <- function(contracts, gsins) {
   
   software_contracts_in_scope <- contracts %>%
     filter(contract_number %in% software_contract_numbers_with_amendment_000) %>%
+    mutate(gsin_type = classify_gsins(gsin)) %>%
     mutate(contract_length = time_length(interval(award_date, expiry_date), "months")) %>%
     mutate(contract_length_bin = cut(
       contract_length,
@@ -85,18 +86,19 @@ describe_contracts_by <- function(contracts_to_describe, ...) {
   contracts_to_describe %>%
     group_by(...) %>%
     summarize(
-      count = n(),
-      total = sum(contract_value)
+      n = n(),
+      value = sum(contract_value)
     ) %>%
     mutate(
-      prop = count / sum(count)
+      n_prop = n / sum(n),
+      value_prop = value / sum(value)
     ) %>%
-    select(..., count, prop, total)
+    select(..., n, n_prop, value, value_prop)
 }
 
 ### contract_length_bin
 software_contracts %>%
-  describe_contracts_by(contract_length_bin) 
+  describe_contracts_by(contract_length_bin)
 
 software_informatics_contracts %>%
   describe_contracts_by(contract_length_bin)
@@ -116,25 +118,39 @@ informatics_contracts %>%
   describe_contracts_by(contract_value_bin)
 
 
+## describe pattern of amendment (no change in value, increased cost, decreased cost)
+describe_amendment_patterns_by <- function(contracts_to_describe, ...) {
+  contracts_to_describe %>%
+    filter(amendment_number == "000") %>%
+    select(contract_number, amendment_number, award_date, expiry_date, contract_value, total_contract_value, ...) %>%
+    mutate(contract_fate = case_when(
+      total_contract_value == contract_value ~ "no change in value",
+      total_contract_value > contract_value ~ "increased cost",
+      total_contract_value < contract_value ~ "decreased cost"
+    )) %>%
+    group_by(..., contract_fate) %>%
+    summarize(
+      count = n(),
+      total_original = sum(contract_value),
+      total_amended = sum(total_contract_value)
+    ) %>%
+    mutate(
+      prop = count / sum(count),
+      total_change = total_amended - total_original
+    ) %>%
+    select(
+      ..., contract_fate:count, prop, total_original:total_change
+    )
+}
 
-software_contracts_in_scope %>%
-  filter(amendment_number == "000") %>%
-  select(contract_number, amendment_number, award_date, expiry_date, contract_value, total_contract_value, contract_length_bin, contract_value_bin) %>%
-  mutate(contract_fate = case_when(
-    total_contract_value == contract_value ~ "no change in value",
-    total_contract_value > contract_value ~ "increased cost",
-    total_contract_value < contract_value ~ "decreased cost"
-  )) %>%
-  group_by(contract_value_bin, contract_fate) %>%
-  summarize(
-    count = n(),
-    total_original = sum(contract_value),
-    total_amended = sum(total_contract_value)
-  ) %>%
-  mutate(
-    prop = count / sum(count),
-    total_change = total_amended - total_original
-  ) %>%
-  select(
-    contract_value_bin, contract_fate:count, prop, total_original:total_change
-  )
+software_contracts %>%
+  describe_amendment_patterns_by()
+
+software_contracts %>%
+  describe_amendment_patterns_by(contract_value_bin)
+
+informatics_contracts %>%
+  describe_amendment_patterns_by()
+
+informatics_contracts %>%
+  describe_amendment_patterns_by(contract_value_bin)
