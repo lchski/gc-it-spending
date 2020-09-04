@@ -21,7 +21,7 @@ remove_header_row_from_raw_excel <- function(sheet, raw_excel) {
 }
 
 remove_extra_rows_from_spend_data <- function(sheet, spend_data) {
-  if (sheet %in% c(10, 16)) { ## these two have a bunch of extra rows for some reason
+  if (sheet %in% c(10, 16, 7, 19)) { ## first two have a bunch of extra rows for some reason; last two have misc comment row
     return(
       spend_data %>% slice(1:20)
     )
@@ -32,7 +32,25 @@ remove_extra_rows_from_spend_data <- function(sheet, spend_data) {
   }
 }
 
-expenditures_201819 %>%
+remove_broken_columns_from_spend_data <- function(spend_data) {
+  ## sheets with broken columns: c(2, 10, 18, 19, 24)
+  
+  good_columns <- c(
+    "expenditure_category",
+    "distributed_computing",
+    "application_database_development_and_maintenance",
+    "production_and_operations_computing",
+    "telecommunications_data_and_voice",
+    "it_security",
+    "it_program_management",
+    "total"
+  )
+  
+  spend_data %>%
+    select(good_columns)
+}
+
+zz <- expenditures_201819 %>%
   mutate(raw_excel = map2(sheet, raw_excel, remove_header_row_from_raw_excel)) %>%
   mutate(dept = map_chr(raw_excel, ~ .[[2,2]])) %>%
   mutate(spend_data = map(sheet, function(sheet_to_load) {
@@ -42,9 +60,13 @@ expenditures_201819 %>%
       read_excel(expenditures_201819_sheets, sheet_to_load, skip = 7)
     }
   })) %>%
-  mutate(spend_data = map2(sheet, spend_data, remove_extra_rows_from_spend_data))
+  mutate(spend_data = map2(sheet, spend_data, remove_extra_rows_from_spend_data)) %>%
+  mutate(spend_data = map(spend_data, clean_names)) %>%
+  mutate(spend_data = map(spend_data, remove_broken_columns_from_spend_data))
 
-expenditures_201819 %>% mutate(tz = map_chr(spend_data, ~ .[[1,1]])) %>% View()
+zz %>%
+  unnest_wider(spend_data) %>%
+  unnest(c(expenditure_category:total)) ## TODO: continue from here :)
 
 
 read_excel("data/source/TreasuryBoardSecretariat-2-e-converted.xlsx", 3) %>% .[[2,2]]
