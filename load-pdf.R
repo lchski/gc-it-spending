@@ -3,23 +3,13 @@
 
 library(readxl)
 
-expenditures_201819 <- tibble(sheet = 2:44) %>%
-  mutate(raw_excel = map(sheet, ~ read_excel("data/source/TreasuryBoardSecretariat-2-e-converted.xlsx", .x)))
+expenditures_201819_sheets <- "data/source/TreasuryBoardSecretariat-2-e-converted.xlsx"
 
-remove_extra_rows_from_raw_excel <- function(sheet, raw_excel) {
-  if (sheet %in% c(10, 16)) { ## these two have a bunch of extra rows for some reason
-    return(
-      raw_excel %>% slice(1:27)
-    )
-  } else {
-    return(
-      raw_excel
-    )
-  }
-}
+expenditures_201819 <- tibble(sheet = 2:44) %>%
+  mutate(raw_excel = map(sheet, ~ read_excel(expenditures_201819_sheets, .x)))
 
 remove_header_row_from_raw_excel <- function(sheet, raw_excel) {
-  if (nrow(raw_excel) > 27 & ! sheet %in% c(19)) { ## these added an extra header row
+  if (nrow(raw_excel) > 27 & ! sheet %in% c(10, 16, 19)) { ## these added an extra header row
     return(
       raw_excel %>% slice(-1)
     )
@@ -30,24 +20,31 @@ remove_header_row_from_raw_excel <- function(sheet, raw_excel) {
   }
 }
 
-remove_extra_last_row_from_raw_excel <- function(sheet, raw_excel) {
-  if (nrow(raw_excel) == 28 & sheet %in% c(7, 19)) { ## these two have extra last rows
+remove_extra_rows_from_spend_data <- function(sheet, spend_data) {
+  if (sheet %in% c(10, 16)) { ## these two have a bunch of extra rows for some reason
     return(
-      raw_excel %>% slice(-28)
+      spend_data %>% slice(1:20)
     )
   } else {
     return(
-      raw_excel
+      spend_data
     )
   }
 }
 
 expenditures_201819 %>%
-  mutate(raw_excel = map2(sheet, raw_excel, remove_extra_rows_from_raw_excel)) %>%
   mutate(raw_excel = map2(sheet, raw_excel, remove_header_row_from_raw_excel)) %>%
-  mutate(raw_excel = map2(sheet, raw_excel, remove_extra_last_row_from_raw_excel)) %>%
   mutate(dept = map_chr(raw_excel, ~ .[[2,2]])) %>%
-  mutate(spend_data = map(raw_excel, ~ (.) %>% slice(-1:-6))) ## remove first six rows, all metadata
+  mutate(spend_data = map(sheet, function(sheet_to_load) {
+    if (sheet_to_load %in% c(3, 5, 7, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38)) { ## sheets with an extra row
+      read_excel(expenditures_201819_sheets, sheet_to_load, skip = 8)
+    } else {
+      read_excel(expenditures_201819_sheets, sheet_to_load, skip = 7)
+    }
+  })) %>%
+  mutate(spend_data = map2(sheet, spend_data, remove_extra_rows_from_spend_data))
+
+expenditures_201819 %>% mutate(tz = map_chr(spend_data, ~ .[[1,1]])) %>% View()
 
 
 read_excel("data/source/TreasuryBoardSecretariat-2-e-converted.xlsx", 3) %>% .[[2,2]]
