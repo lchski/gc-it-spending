@@ -68,9 +68,7 @@ zz <- expenditures_201819 %>%
   unnest_wider(spend_data) %>%
   unnest(c(expenditure_category:total)) %>%
   mutate_at(vars(distributed_computing:total), ~ gsub("[^-0-9]", "", .x)) %>%
-  mutate_at(vars(distributed_computing:total), as.integer)
-  
-zz %>%  
+  mutate_at(vars(distributed_computing:total), as.integer) %>%
   mutate(expenditure_category = case_when(
     expenditure_category == "Allowances including EBP (20% of Salary)" ~ "Allowances incl EBP (20% of Salary)",
     TRUE ~ expenditure_category
@@ -123,6 +121,12 @@ zz %>%
     TRUE ~ expenditure_category
   )) %>%
   fill(expenditure_category) %>%
-  select(expenditure_category, expenditure_category_sub1, expenditure_category_sub2) %>% View()
+  mutate(is_subtotal_row = case_when(
+    expenditure_category %in% c("Human Resources", "External Services") & is.na(expenditure_category_sub1) ~ TRUE,
+    expenditure_category_sub1 == "Cloud Services" & is.na(expenditure_category_sub2) ~ TRUE,
+    TRUE ~ FALSE
+  )) %>%
+  mutate(is_total_row = expenditure_category == "Total") %>%
+  mutate(is_totaling_row = is_subtotal_row | is_total_row)
 
 
