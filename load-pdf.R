@@ -130,3 +130,22 @@ zz <- expenditures_201819 %>%
   mutate(is_totaling_row = is_subtotal_row | is_total_row)
 
 
+
+
+zz1 <- zz %>%
+  filter(! is_totaling_row) %>%
+  group_by(sheet, dept) %>%
+  summarize_at(vars(distributed_computing:total), ~ sum(.x, na.rm = TRUE)) %>%
+  ungroup() %>%
+  pivot_longer(cols = distributed_computing:total, names_to = "program", values_to = "spend")
+
+zz2 <- zz %>%
+  filter(is_total_row) %>%
+  select(sheet, dept, distributed_computing:total) %>%
+  mutate_all(~ replace_na(.x, c(0))) %>%
+  pivot_longer(cols = distributed_computing:total, names_to = "program", values_to = "spend")
+
+zz1 %>%
+  left_join(zz2, by = c("sheet", "dept", "program")) %>%
+  mutate(same = spend.x == spend.y) %>%
+  filter(! same)
