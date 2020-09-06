@@ -53,6 +53,7 @@ remove_broken_columns_from_spend_data <- function(spend_data) {
 zz <- expenditures_201819 %>%
   mutate(raw_excel = map2(sheet, raw_excel, remove_header_row_from_raw_excel)) %>%
   mutate(dept = map_chr(raw_excel, ~ .[[2,2]])) %>%
+  select(-raw_excel) %>%
   mutate(spend_data = map(sheet, function(sheet_to_load) {
     if (sheet_to_load %in% c(3, 5, 7, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38)) { ## sheets with an extra row
       read_excel(expenditures_201819_sheets, sheet_to_load, skip = 8)
@@ -62,11 +63,66 @@ zz <- expenditures_201819 %>%
   })) %>%
   mutate(spend_data = map2(sheet, spend_data, remove_extra_rows_from_spend_data)) %>%
   mutate(spend_data = map(spend_data, clean_names)) %>%
-  mutate(spend_data = map(spend_data, remove_broken_columns_from_spend_data))
-
-zz %>%
+  mutate(spend_data = map(spend_data, remove_broken_columns_from_spend_data)) %>%
+  mutate(spend_data = map(spend_data, ~ mutate_all(.x, as.character))) %>%
   unnest_wider(spend_data) %>%
-  unnest(c(expenditure_category:total)) ## TODO: continue from here :)
+  unnest(c(expenditure_category:total)) %>%
+  mutate_at(vars(distributed_computing:total), ~ gsub("[^-0-9]", "", .x)) %>%
+  mutate_at(vars(distributed_computing:total), as.integer)
+  
+zz %>%  
+  mutate(expenditure_category = case_when(
+    expenditure_category == "Allowances including EBP (20% of Salary)" ~ "Allowances incl EBP (20% of Salary)",
+    TRUE ~ expenditure_category
+  )) %>%
+  mutate(expenditure_category_sub1 = case_when(
+    expenditure_category %in% c(
+      "Salary",
+      "Allowances incl EBP (20% of Salary)",
+      "Benefits paid by TBS (8.5% of Salary)",
+      "Office Accommodation (13% of Salary)",
+      "Training, Travel & Other HR Expenses",
+      "Professional Services",
+      "Cloud Services",
+      "Other External Services"
+    ) ~ expenditure_category,
+    expenditure_category %in% c(
+      "Software as a Service (SaaS)",
+      "Platform as a Service (PaaS)",
+      "Infrastructure as a Service (IaaS)"
+    ) ~ "Cloud Services",
+    TRUE ~ NA_character_
+  )) %>%
+  mutate(expenditure_category_sub2 = case_when(
+    expenditure_category %in% c(
+      "Software as a Service (SaaS)",
+      "Platform as a Service (PaaS)",
+      "Infrastructure as a Service (IaaS)"
+    ) ~ expenditure_category,
+    TRUE ~ NA_character_
+  )) %>%
+  mutate(expenditure_category = case_when(
+    expenditure_category %in% c(
+      "Software as a Service (SaaS)",
+      "Platform as a Service (PaaS)",
+      "Infrastructure as a Service (IaaS)"
+    ) ~ "Cloud Services",
+    TRUE ~ expenditure_category
+  )) %>%
+  mutate(expenditure_category = case_when(
+    expenditure_category %in% c(
+      "Salary",
+      "Allowances incl EBP (20% of Salary)",
+      "Benefits paid by TBS (8.5% of Salary)",
+      "Office Accommodation (13% of Salary)",
+      "Training, Travel & Other HR Expenses",
+      "Professional Services",
+      "Cloud Services",
+      "Other External Services"
+    ) ~ NA_character_,
+    TRUE ~ expenditure_category
+  )) %>%
+  fill(expenditure_category) %>%
+  select(expenditure_category, expenditure_category_sub1, expenditure_category_sub2) %>% View()
 
 
-read_excel("data/source/TreasuryBoardSecretariat-2-e-converted.xlsx", 3) %>% .[[2,2]]
