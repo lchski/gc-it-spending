@@ -53,7 +53,28 @@ expenditures_201819 <- read_excel("data/source/2018-19 IT spending.xlsx") %>%
   pivot_longer(cols = `Distributed Computing`:`Total`, names_to = "it_services_group") %>%
   clean_names() %>%
   left_join(read_csv("data/source/dept_acronyms.csv")) %>%
-  select(dept, department, infobase_organization, everything())
+  select(dept, department, infobase_organization, everything()) %>%
+  mutate(
+    is_external_service = expenditure_category %in% c(
+      "Professional Services",
+      "Software as a Service (SaaS)",
+      "Platform as a Service (PaaS)",
+      "Infrastructure as a Service (IaaS)",
+      "Other External Services"
+    ),
+    is_cloud_external_service = expenditure_category %in% c(
+      "Software as a Service (SaaS)",
+      "Platform as a Service (PaaS)",
+      "Infrastructure as a Service (IaaS)"
+    )
+  ) %>%
+  filter(! expenditure_category %in% c( ## remove categories we can get by summing
+    "External Services",
+    "Total"
+  )) %>%
+  filter(! it_services_group %in% c(
+    "Total"
+  ))
 
 expenditures_201819 %>% write_csv("data/out/expenditures_201819.csv")
 
