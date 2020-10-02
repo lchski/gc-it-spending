@@ -41,6 +41,7 @@ classify_gsins <- function(gsins) {
 }
 
 ## https://open.canada.ca/data/en/dataset/a35cf382-690c-4221-a971-cf0fd189a46f
+## "Departmental Plans and Departmental Results Reports – Expenditures and Full Time Equivalents (FTE) by Program and by Organization"
 expenditures_ftes_by_program <- read_csv("data/source/rbpo_rppo_en.csv")
 
 it_service_spending_ftes_201819 <- expenditures_ftes_by_program %>%
@@ -78,6 +79,51 @@ expenditures_201819 <- read_excel("data/source/2018-19 IT spending.xlsx") %>%
 
 expenditures_201819 %>% write_csv("data/out/expenditures_201819.csv")
 
+
+
+
+it_spending_201819 <- 6811917711
+
+exp_program_201819 <- expenditures_ftes_by_program %>%
+  filter(fy_ef == 2018) %>%
+  select(-contains("plann"))
+
+## bigger than IT?
+exp_program_201819 %>%
+  filter(actual_spending < it_spending_201819)
+
+exp_program_201819 %>%
+  group_by(organization, program_name) %>%
+  summarize(spending = sum(actual_spending, na.rm = TRUE), ftes = sum(actual_ftes, na.rm = TRUE)) %>%
+  mutate(spending_pct_it = spending / it_spending_201819) %>%
+  filter(spending < it_spending_201819)
+
+exp_program_201819 %>%
+  group_by(organization, core_responsibility) %>%
+  summarize(spending = sum(actual_spending, na.rm = TRUE), ftes = sum(actual_ftes, na.rm = TRUE)) %>%
+  mutate(
+    spending_pct_it = spending / it_spending_201819,
+    it_x_times = it_spending_201819 / spending
+  ) %>%
+  filter(spending < it_spending_201819)
+
+
+exp_program_201819 %>%
+  group_by(organization) %>%
+  summarize(spending = sum(actual_spending, na.rm = TRUE), ftes = sum(actual_ftes, na.rm = TRUE)) %>%
+  bind_rows(tibble(organization = "IT benchmark", spending = it_spending_201819, ftes = NA, is_benchmark = TRUE)) %>%
+  mutate(
+    organization = fct_reorder(organization, spending),
+    is_benchmark = ! is.na(is_benchmark)
+  ) %>%
+  ggplot(aes(x = organization, y = spending, fill = is_benchmark)) +
+  geom_col() +
+  coord_flip()
+
+exp_program_201819 %>%
+  group_by(core_responsibility) %>%
+  summarize(spending = sum(actual_spending, na.rm = TRUE), ftes = sum(actual_ftes, na.rm = TRUE)) %>%
+  View()
 
 
 
